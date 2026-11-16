@@ -1,0 +1,11 @@
+id,name,age,city,salary,joined,active
+1,Alice,34,Jakarta,5200.50,2020-01-15,true
+2,Budi,28,Bandung,4100,2021-03-02,true
+3,Citra,,Jakarta,6100.75,2019-11-30,false
+4,Dewi,45,Surabaya,7300,2018-07-21,true
+5,Eko,39,Bandung,,2022-05-09,true
+6,Fajar,23,Jakarta,3900,2023-02-14,false
+7,Gita,31,Medan,5600,2020-09-01,true
+8,Hadi,52,Surabaya,8800.25,2017-04-18,true
+9,Indah,29,Jakarta,4700,2021-12-12,false
+10,Joko,41,Bandung,6900,2019-06-25,true
