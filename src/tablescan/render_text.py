@@ -33,9 +33,21 @@ def _column_lines(col: ColumnProfile) -> List[str]:
     return lines
 
 
+def render_issues(profile: TableProfile) -> List[str]:
+    if not profile.issues:
+        return ["Data quality: no issues found", ""]
+    lines = [f"Data quality: {len(profile.issues)} issue(s)", "-" * 40]
+    for i in profile.issues:
+        where = f"[{i.column}] " if i.column else ""
+        lines.append(f"  {i.severity.upper():7} {where}{i.message}")
+    lines.append("")
+    return lines
+
+
 def render_text(profile: TableProfile) -> str:
     out = [f"Rows: {profile.n_rows}   Columns: {profile.n_cols}", "=" * 40]
     for col in profile.columns:
         out.extend(_column_lines(col))
         out.append("")
+    out.extend(render_issues(profile))
     return "\n".join(out).rstrip() + "\n"
