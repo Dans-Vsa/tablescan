@@ -66,3 +66,25 @@ def numeric_summary(xs: Sequence[float]) -> Dict[str, float]:
 def top_values(values: Sequence[str], n: int = 5) -> List[Tuple[str, int]]:
     """Most common values; ties keep first-seen order."""
     return Counter(values).most_common(n)
+
+
+def pearson(xs: Sequence[float], ys: Sequence[float]) -> float | None:
+    """Pearson correlation of two equal-length sequences (None if undefined)."""
+    n = len(xs)
+    if n != len(ys) or n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    syy = sum((y - my) ** 2 for y in ys)
+    if sxx == 0 or syy == 0:
+        return None
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    return max(-1.0, min(1.0, sxy / (sxx * syy) ** 0.5))
+
+
+def iqr_bounds(xs: Sequence[float], k: float = 1.5) -> Tuple[float, float]:
+    """Tukey fences (q1 - k*IQR, q3 + k*IQR)."""
+    s = sorted(xs)
+    q1, q3 = quantile(s, 0.25), quantile(s, 0.75)
+    iqr = q3 - q1
+    return q1 - k * iqr, q3 + k * iqr
