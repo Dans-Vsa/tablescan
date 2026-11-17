@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
-from . import stats
+from . import quality, stats
 from .loader import Table, is_missing
 from .types import BOOLEAN, DATE, EMPTY, FLOAT, INTEGER, TEXT, infer_type, parse_date
 
@@ -34,6 +34,8 @@ class TableProfile:
     n_rows: int
     n_cols: int
     columns: List[ColumnProfile]
+    issues: List[quality.Issue] = field(default_factory=list)
+    correlations: List[List[Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         data = asdict(self)
@@ -72,4 +74,11 @@ def profile_column(name: str, raw: List[str]) -> ColumnProfile:
 
 def profile_table(table: Table) -> TableProfile:
     cols = [profile_column(h, c) for h, c in zip(table.headers, table.columns)]
-    return TableProfile(n_rows=table.n_rows, n_cols=table.n_cols, columns=cols)
+    issues, corr = quality.analyze(table, cols)
+    return TableProfile(
+        n_rows=table.n_rows,
+        n_cols=table.n_cols,
+        columns=cols,
+        issues=issues,
+        correlations=[list(c) for c in corr],
+    )
