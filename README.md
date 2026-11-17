@@ -2,7 +2,7 @@
 
 A zero-dependency CSV profiler written in pure Python. Point it at a CSV file and get column types, descriptive statistics and (soon) data-quality warnings and a shareable HTML report - no pandas required.
 
-> Status: **v0.1.0 - work in progress** (milestone 1 of 4).
+> Status: **v0.2.0 - work in progress** (milestone 2 of 4).
 
 ## Features
 
@@ -12,7 +12,8 @@ A zero-dependency CSV profiler written in pure Python. Point it at a CSV file an
 - [x] Numeric statistics: min, quartiles, median, max, mean, std, skewness
 - [x] Top values, unique counts, date ranges, average text length
 - [x] Plain-text and JSON output
-- [ ] Data-quality checks: duplicates, outliers, constant / high-cardinality columns, correlations (milestone 2)
+- [x] Data-quality checks: duplicate rows, IQR outliers, empty / constant / high-missing / high-cardinality columns, strong correlations
+- [x] `check` command with CI-friendly exit codes (`0` ok, `2` warnings, `--strict` also fails on info)
 - [ ] Self-contained HTML report with SVG charts (milestone 3)
 - [ ] CI, changelog, v1.0.0 (milestone 4)
 
@@ -33,7 +34,31 @@ python -m venv .venv
 .\.venv\Scripts\tablescan.exe profile examples\people.csv
 .\.venv\Scripts\tablescan.exe profile examples\people.csv --format json
 .\.venv\Scripts\tablescan.exe profile data.csv --delimiter ";"
+.\.venv\Scripts\tablescan.exe check examples\messy.csv
+.\.venv\Scripts\tablescan.exe check examples\messy.csv --format json --strict
 ```
+
+`profile` now ends with a data-quality section; `check` prints only that section and exits with code `2` when warnings are found.
+
+Example `check` output:
+
+```
+Data quality: 3 issue(s)
+----------------------------------------
+  WARNING 1 duplicate row(s) found
+  WARNING [units] 1 outlier(s) outside the 1.5xIQR fences
+  INFO    units and revenue are strongly correlated (r = +1.00)
+```
+
+| Check | Level | Rule |
+|-------|-------|------|
+| duplicate_rows | warning | row identical to an earlier row |
+| outliers | warning | numeric value outside Q1-1.5xIQR / Q3+1.5xIQR |
+| empty_column | warning | no non-missing values |
+| high_missing | warning | >= 30% missing |
+| constant_column | info | one distinct value |
+| high_cardinality | info | text column, >= 20 rows, >= 90% unique |
+| strong_correlation | info | Pearson abs(r) >= 0.8 between numeric columns |
 
 Example output:
 
@@ -60,6 +85,7 @@ src/tablescan/
   types.py        column type inference
   stats.py        pure-Python statistics helpers
   profile.py      ColumnProfile / TableProfile builders
+  quality.py      data-quality checks (duplicates, outliers, correlations)
   render_text.py  plain-text report
   cli.py          command-line interface
 tests/            pytest suite
