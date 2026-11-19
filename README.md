@@ -2,7 +2,7 @@
 
 A zero-dependency CSV profiler written in pure Python. Point it at a CSV file and get column types, descriptive statistics and (soon) data-quality warnings and a shareable HTML report - no pandas required.
 
-> Status: **v0.2.0 - work in progress** (milestone 2 of 4).
+> Status: **v0.3.0 - work in progress** (milestone 3 of 4).
 
 ## Features
 
@@ -14,7 +14,8 @@ A zero-dependency CSV profiler written in pure Python. Point it at a CSV file an
 - [x] Plain-text and JSON output
 - [x] Data-quality checks: duplicate rows, IQR outliers, empty / constant / high-missing / high-cardinality columns, strong correlations
 - [x] `check` command with CI-friendly exit codes (`0` ok, `2` warnings, `--strict` also fails on info)
-- [ ] Self-contained HTML report with SVG charts (milestone 3)
+- [x] Self-contained HTML report: histograms, top-value bars, correlation heatmap, light/dark theme, no scripts or external assets
+- [x] `report` command (`-o`, `--title`)
 - [ ] CI, changelog, v1.0.0 (milestone 4)
 
 ## Tech stack
@@ -37,6 +38,13 @@ python -m venv .venv
 .\.venv\Scripts\tablescan.exe check examples\messy.csv
 .\.venv\Scripts\tablescan.exe check examples\messy.csv --format json --strict
 ```
+
+```powershell
+.\.venv\Scripts	ablescan.exe report examples\messy.csv
+.\.venv\Scripts	ablescan.exe report data.csv -o outeport.html --title "Sales data"
+```
+
+`report` writes a single HTML file (default `<file>.report.html`) with inline CSS and SVG charts; open it in any browser or attach it to an email. See [examples/messy.report.html](examples/messy.report.html).
 
 `profile` now ends with a data-quality section; `check` prints only that section and exits with code `2` when warnings are found.
 
@@ -87,6 +95,8 @@ src/tablescan/
   profile.py      ColumnProfile / TableProfile builders
   quality.py      data-quality checks (duplicates, outliers, correlations)
   render_text.py  plain-text report
+  charts.py       dependency-free SVG chart builders
+  render_html.py  self-contained HTML report
   cli.py          command-line interface
 tests/            pytest suite
 examples/         sample CSV files
