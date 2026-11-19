@@ -22,6 +22,7 @@ class ColumnProfile:
     min_value: Optional[str] = None
     max_value: Optional[str] = None
     avg_length: Optional[float] = None
+    histogram: Optional[Dict[str, List[float]]] = None
 
     @property
     def missing_pct(self) -> float:
@@ -62,7 +63,10 @@ def profile_column(name: str, raw: List[str]) -> ColumnProfile:
         return col
     col.top = [[v, c] for v, c in stats.top_values(present)]
     if dtype in (INTEGER, FLOAT):
-        col.numeric = stats.numeric_summary([_to_number(v) for v in present])
+        nums = [_to_number(v) for v in present]
+        col.numeric = stats.numeric_summary(nums)
+        edges, counts = stats.histogram(nums)
+        col.histogram = {"edges": edges, "counts": counts}
     elif dtype == DATE:
         dates = sorted(d for d in (parse_date(v) for v in present) if d)
         col.min_value = dates[0].date().isoformat()
