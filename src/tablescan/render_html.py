@@ -1,0 +1,116 @@
+"""Self-contained HTML report (inline CSS + SVG, no external assets)."""
+
+from __future__ import annotations
+
+from html import escape
+from typing import List
+
+from . import charts
+from .profile import ColumnProfile, TableProfile
+
+CSS = """
+:root{--bg:#f6f7fb;--card:#fff;--fg:#1a1d29;--muted:#667085;--line:#e4e7ec;
+--warn:#b54708;--warnbg:#fffaeb;--info:#175cd3;--infobg:#eff8ff}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1117;--card:#181b24;--fg:#e8eaf0;
+--muted:#98a2b3;--line:#2a2f3c;--warn:#fdb022;--warnbg:#2a2111;--info:#84caff;--infobg:#102033}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
+h1{margin:0 0 4px;font-size:26px}h2{margin:32px 0 12px;font-size:18px}
+.sub{color:var(--muted);margin:0 0 20px}
+.stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px}
+.stat b{display:block;font-size:22px}.stat span{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h3{margin:0 0 2px;font-size:16px;word-break:break-word}
+.tag{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.meta{color:var(--muted);font-size:13px;margin:4px 0 8px}
+.chart{width:100%;height:auto;display:block;margin-top:6px}
+table.kv{border-collapse:collapse;font-size:13px;width:100%}
+.kv td{padding:1px 0}.kv td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.issue{border-radius:8px;padding:8px 12px;margin:6px 0;font-size:14px}
+.issue.warning{background:var(--warnbg);color:var(--warn)}
+.issue.info{background:var(--infobg);color:var(--info)}
+.issue b{text-transform:uppercase;font-size:11px;margin-right:8px}
+.ok{color:var(--muted)}.heatwrap{max-width:520px}
+footer{margin-top:40px;color:var(--muted);font-size:12px}
+"""
+
+
+def _fmt(x: float) -> str:
+    return charts._num(x)
+
+
+def _column_card(col: ColumnProfile) -> str:
+    rows = [("values", str(col.count)), ("missing", f"{col.missing} ({col.missing_pct}%)"),
+            ("unique", str(col.unique))]
+    if col.numeric:
+        n = col.numeric
+        rows += [("min / max", f"{_fmt(n['min'])} / {_fmt(n['max'])}"),
+                 ("median", _fmt(n["median"])), ("mean", _fmt(n["mean"])),
+                 ("std", _fmt(n["std"])), ("skew", f"{n['skew']:.2f}")]
+    elif col.min_value:
+        rows.append(("range", f"{col.min_value} → {col.max_value}"))
+    elif col.avg_length is not None:
+        rows.append(("avg length", str(col.avg_length)))
+    table = "".join(f"<tr><td>{escape(k)}</td><td>{escape(v)}</td></tr>" for k, v in rows)
+    chart = ""
+    if col.histogram:
+        chart = charts.histogram_svg(col.histogram["edges"], col.histogram["counts"])
+    elif col.top and col.dtype != "empty":
+        chart = charts.bars_svg([(str(v), int(c)) for v, c in col.top])
+    return (f'<div class="card"><span class="tag">{escape(col.dtype)}</span>'
+            f"<h3>{escape(col.name)}</h3>"
+            f'<table class="kv">{table}</table>{chart}</div>')
+
+
+def _issues_html(profile: TableProfile) -> str:
+    if not profile.issues:
+        return '<p class="ok">No data-quality issues found.</p>'
+    out: List[str] = []
+    for i in profile.issues:
+        where = f"<code>{escape(i.column)}</code> " if i.column else ""
+        out.append(f'<div class="issue {escape(i.severity)}"><b>{escape(i.severity)}</b>'
+                   f"{where}{escape(i.message)}</div>")
+    return "".join(out)
+
+
+def correlation_matrix(profile: TableProfile):
+    """Return (names, matrix) for numeric columns, or ([], [])."""
+    names = [c.name for c in profile.columns if c.dtype in ("integer", "float")]
+    if len(names) < 2:
+        return [], []
+    idx = {n: i for i, n in enumerate(names)}
+    m: List[List[float | None]] = [[None] * len(names) for _ in names]
+    for i in range(len(names)):
+        m[i][i] = 1.0
+    for a, b, r in profile.correlations:
+        m[idx[a]][idx[b]] = m[idx[b]][idx[a]] = r
+    return names, m
+
+
+def render_html(profile: TableProfile, title: str = "tablescan report") -> str:
+    names, matrix = correlation_matrix(profile)
+    heat = ""
+    if names:
+        heat = ('<h2>Correlations</h2><div class="card heatwrap">'
+                + charts.heatmap_svg(names, matrix) + "</div>")
+    warn = sum(1 for i in profile.issues if i.severity == "warning")
+    cards = "".join(_column_card(c) for c in profile.columns)
+    return (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        f"<title>{escape(title)}</title><style>{CSS}</style></head><body><main>"
+        f"<h1>{escape(title)}</h1><p class=\"sub\">Generated by tablescan</p>"
+        '<div class="stats">'
+        f'<div class="stat"><b>{profile.n_rows:,}</b><span>rows</span></div>'
+        f'<div class="stat"><b>{profile.n_cols}</b><span>columns</span></div>'
+        f'<div class="stat"><b>{warn}</b><span>warnings</span></div>'
+        f'<div class="stat"><b>{len(profile.issues) - warn}</b><span>notes</span></div>'
+        "</div>"
+        f"<h2>Data quality</h2>{_issues_html(profile)}"
+        f'<h2>Columns</h2><div class="grid">{cards}</div>{heat}'
+        "<footer>Self-contained report: no scripts or external assets.</footer>"
+        "</main></body></html>\n"
+    )
