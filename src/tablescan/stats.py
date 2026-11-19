@@ -88,3 +88,23 @@ def iqr_bounds(xs: Sequence[float], k: float = 1.5) -> Tuple[float, float]:
     q1, q3 = quantile(s, 0.25), quantile(s, 0.75)
     iqr = q3 - q1
     return q1 - k * iqr, q3 + k * iqr
+
+
+def histogram(xs: Sequence[float], bins: int | None = None) -> Tuple[List[float], List[int]]:
+    """Equal-width histogram. Returns (edges, counts); len(edges) == len(counts) + 1.
+
+    The bin count defaults to Sturges' rule, capped to 5..20.
+    """
+    if not xs:
+        raise ValueError("histogram of empty sequence")
+    if bins is None:
+        bins = max(5, min(20, int(math.ceil(math.log2(len(xs)) + 1))))
+    lo, hi = float(min(xs)), float(max(xs))
+    if lo == hi:
+        return [lo - 0.5, hi + 0.5], [len(xs)]
+    width = (hi - lo) / bins
+    counts = [0] * bins
+    for x in xs:
+        idx = min(int((x - lo) / width), bins - 1)
+        counts[idx] += 1
+    return [lo + i * width for i in range(bins + 1)], counts
