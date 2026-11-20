@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import csv
+import io
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -39,8 +41,13 @@ def _sniff_delimiter(sample: str) -> str:
 
 
 def read_csv(path, delimiter: str | None = None, encoding: str = "utf-8-sig") -> Table:
-    """Read a CSV file. Short rows are padded, long rows are truncated."""
-    text = Path(path).read_text(encoding=encoding, newline="")
+    """Read a CSV file (or stdin when path is "-"). Short rows are padded, long rows are truncated."""
+    if str(path) == "-":
+        text = sys.stdin.read()
+        if text.startswith("﻿"):
+            text = text[1:]
+    else:
+        text = Path(path).read_text(encoding=encoding, newline="")
     return parse_csv(text, delimiter)
 
 
@@ -49,7 +56,7 @@ def parse_csv(text: str, delimiter: str | None = None) -> Table:
     if not text.strip():
         raise ValueError("CSV input is empty")
     delim = delimiter or _sniff_delimiter(text[:4096])
-    rows = list(csv.reader(text.splitlines(), delimiter=delim))
+    rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=delim))
     headers = [h.strip() or f"column_{i + 1}" for i, h in enumerate(rows[0])]
     columns: List[List[str]] = [[] for _ in headers]
     for row in rows[1:]:
