@@ -21,19 +21,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"tablescan {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
     prof = sub.add_parser("profile", help="print a profile of a CSV file")
-    prof.add_argument("file", help="path to the CSV file")
+    prof.add_argument("file", help="path to the CSV file, or - for stdin")
     prof.add_argument("--format", choices=["text", "json"], default="text")
     prof.add_argument("--delimiter", help="field delimiter (auto-detected by default)")
+    prof.add_argument("--encoding", default="utf-8-sig", help="file encoding (default: utf-8-sig)")
     chk = sub.add_parser("check", help="run data-quality checks; non-zero exit on warnings")
-    chk.add_argument("file", help="path to the CSV file")
+    chk.add_argument("file", help="path to the CSV file, or - for stdin")
     chk.add_argument("--format", choices=["text", "json"], default="text")
     chk.add_argument("--delimiter", help="field delimiter (auto-detected by default)")
+    chk.add_argument("--encoding", default="utf-8-sig", help="file encoding (default: utf-8-sig)")
     chk.add_argument("--strict", action="store_true",
                      help="also fail on info-level findings")
     rep = sub.add_parser("report", help="write a self-contained HTML report")
-    rep.add_argument("file", help="path to the CSV file")
+    rep.add_argument("file", help="path to the CSV file, or - for stdin")
     rep.add_argument("-o", "--output", help="output path (default: <file>.report.html)")
     rep.add_argument("--delimiter", help="field delimiter (auto-detected by default)")
+    rep.add_argument("--encoding", default="utf-8-sig", help="file encoding (default: utf-8-sig)")
     rep.add_argument("--title", help="report title (default: the file name)")
     return p
 
@@ -63,9 +66,12 @@ def _report(profile, args) -> int:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "report" and args.file == "-" and not args.output:
+        print("error: report needs -o/--output when reading from stdin", file=sys.stderr)
+        return 1
     try:
-        table = read_csv(args.file, delimiter=args.delimiter)
-    except (OSError, ValueError) as exc:
+        table = read_csv(args.file, delimiter=args.delimiter, encoding=args.encoding)
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     profile = profile_table(table)
