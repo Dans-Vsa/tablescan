@@ -1,8 +1,8 @@
 # tablescan
 
-A zero-dependency CSV profiler written in pure Python. Point it at a CSV file and get column types, descriptive statistics and (soon) data-quality warnings and a shareable HTML report - no pandas required.
+A zero-dependency CSV profiler written in pure Python. Point it at a CSV file and get column types, descriptive statistics and data-quality warnings and a shareable HTML report - no pandas required.
 
-> Status: **v0.3.0 - work in progress** (milestone 3 of 4).
+> Status: **v1.0.0** - stable.
 
 ## Features
 
@@ -16,7 +16,8 @@ A zero-dependency CSV profiler written in pure Python. Point it at a CSV file an
 - [x] `check` command with CI-friendly exit codes (`0` ok, `2` warnings, `--strict` also fails on info)
 - [x] Self-contained HTML report: histograms, top-value bars, correlation heatmap, light/dark theme, no scripts or external assets
 - [x] `report` command (`-o`, `--title`)
-- [ ] CI, changelog, v1.0.0 (milestone 4)
+- [x] Read from stdin (`-`) and `--encoding` option
+- [x] GitHub Actions CI, changelog, v1.0.0
 
 ## Tech stack
 
@@ -40,8 +41,10 @@ python -m venv .venv
 ```
 
 ```powershell
-.\.venv\Scripts	ablescan.exe report examples\messy.csv
-.\.venv\Scripts	ablescan.exe report data.csv -o outeport.html --title "Sales data"
+.\.venv\Scripts\tablescan.exe report examples\messy.csv
+.\.venv\Scripts\tablescan.exe report data.csv -o out\report.html --title "Sales data"
+Get-Content data.csv | .\.venv\Scripts\tablescan.exe profile -
+.\.venv\Scripts\tablescan.exe profile latin1.csv --encoding latin-1
 ```
 
 `report` writes a single HTML file (default `<file>.report.html`) with inline CSS and SVG charts; open it in any browser or attach it to an email. See [examples/messy.report.html](examples/messy.report.html).
@@ -99,6 +102,8 @@ src/tablescan/
   render_html.py  self-contained HTML report
   cli.py          command-line interface
 tests/            pytest suite
+.github/          CI workflow
+CHANGELOG.md      release notes
 examples/         sample CSV files
 ```
 
