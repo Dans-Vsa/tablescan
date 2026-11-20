@@ -55,3 +55,32 @@ def test_cli_json(capsys):
 def test_cli_missing_file(capsys):
     assert main(["profile", "nope.csv"]) == 1
     assert "error" in capsys.readouterr().err
+
+
+def test_quoted_newline_stays_in_one_cell():
+    t = parse_csv('a,b\n"line1\nline2",x\n3,y\n')
+    assert t.n_rows == 2
+    assert t.columns[0][0] == "line1\nline2"
+
+
+def test_cli_reads_stdin(monkeypatch, capsys):
+    import io
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("a,b\n1,2\n3,4\n"))
+    assert main(["profile", "-", "--format", "json"]) == 0
+    assert json.loads(capsys.readouterr().out)["n_rows"] == 2
+
+
+def test_cli_report_stdin_requires_output(monkeypatch, capsys):
+    import io
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("a\n1\n"))
+    assert main(["report", "-"]) == 1
+    assert "-o" in capsys.readouterr().err
+
+
+def test_cli_encoding_option(tmp_path, capsys):
+    f = tmp_path / "l1.csv"
+    f.write_bytes("name,city\nJos\xe9,M\xfcnchen\n".encode("latin-1"))
+    assert main(["profile", str(f), "--encoding", "latin-1", "--format", "json"]) == 0
+    assert main(["profile", str(f)]) == 1
